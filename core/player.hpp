@@ -8,6 +8,7 @@
 #ifndef LIGHT_PLAYER_PLAYER_HPP
 #define LIGHT_PLAYER_PLAYER_HPP
 
+#include <atomic>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -61,12 +62,14 @@ private:
 private:
     auto VideoFrameDuration(const Frame& frame, const Frame& next_frame) const -> double;
     auto ComputeVideoFrameTargetDelay(double delay) const -> double;
+    auto IsCloseRequested(bool lock) const -> bool;
+    auto OnThreadExit() -> void;
 
 private:
     PlayerState player_state_ = PlayerState::Ready;
     std::shared_ptr<Executor> ui_executor_;
     std::shared_ptr<PlayerEventListener> event_listener_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     int video_stream_index_ = -1;
     int audio_stream_index_ = -1;
     std::shared_ptr<Demuxer> demuxer_;
@@ -95,6 +98,8 @@ private:
     bool paused_ = false;
     bool is_seek_requested_ = false;
     std::int64_t seek_target_us_ = 0;
+    bool is_close_requested_ = false;
+    std::atomic<int> running_thread_cnt_ = 0;
 };
 
 } // namespace lp

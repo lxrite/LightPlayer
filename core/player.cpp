@@ -53,8 +53,10 @@ auto Player::Open(const std::string& url) -> PlayerOperationResult
     auto url_copy = url;
     // TODO(Light Lin):
     auto self = shared_from_this();
+    ++running_thread_cnt_;
     std::thread([this, self, url_copy]() {
         DoOpen(url_copy);
+        OnThreadExit();
     }).detach();
     return PlayerOperationResult::Pending;
 }
@@ -129,7 +131,16 @@ auto Player::Close() -> PlayerOperationResult
     else if (player_state_ == PlayerState::Closing) {
         return PlayerOperationResult::Pending;
     }
-    // TODO(Light Lin):
+    {
+        std::unique_lock<std::mutex> lck(mutex_);
+        is_close_requested_ = true;
+    }
+    read_pkt_cv_.notify_one();
+    audio_decode_cv_.notify_one();
+    video_decode_cv_.notify_one();
+    audio_output_cv_.notify_one();
+    video_render_cv_.notify_one();
+    player_state_ = PlayerState::Closing;
     return PlayerOperationResult::Pending;
 }
 
@@ -155,8 +166,15 @@ auto Player::CreateInstance(const std::shared_ptr<Executor>& ui_executor) -> std
 
 auto Player::DoOpen(const std::string& url) -> void
 {
+    if (IsCloseRequested(true)) {
+        return;
+    }
     auto self = shared_from_this();
     ui_executor_->Post([this, self]() {
+        if (player_state_ != PlayerState::Ready) {
+            return;
+        }
+        player_state_ = PlayerState::Opening;
         if (event_listener_) {
             PlayerStateOpeningEventArg event_arg;
             event_listener_->OnPlayerStateOpening(event_arg);
@@ -169,9 +187,14 @@ auto Player::DoOpen(const std::string& url) -> void
         if (avformat_open_input(&format_ctx_, url.c_str(), nullptr, nullptr) != 0) {
             break;
         }
-
+        if (IsCloseRequested(true)) {
+            return;
+        }
         if (avformat_find_stream_info(format_ctx_, nullptr) != 0) {
             break;
+        }
+        if (IsCloseRequested(true)) {
+            return;
         }
 
         audio_stream_index_ = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
@@ -206,64 +229,84 @@ auto Player::DoOpen(const std::string& url) -> void
         max_frame_duration_ = (format_ctx_->iformat->flags & AVFMT_TS_DISCONT) ? 10.0 : 3600.0;
 
         ui_executor_->Post([this, self]() {
+            if (player_state_ != PlayerState::Opening) {
+                return;
+            }
             player_state_ = PlayerState::Opended;
             if (event_listener_) {
                 PlayerStateOpenedEventArg event_arg;
                 event_listener_->OnPlayerStateOpened(event_arg);
             }
-            if (player_state_ == PlayerState::Opended) {
-                if (paused_) {
-                    player_state_ = PlayerState::Paused;
-                    if (event_listener_) {
-                        PlayerStatePausedEventArg event_arg;
-                        event_listener_->OnPlayerStatePaused(event_arg);
-                    }
+            if (player_state_ != PlayerState::Opended) {
+                return;
+            }
+            if (paused_) {
+                player_state_ = PlayerState::Paused;
+                if (event_listener_) {
+                    PlayerStatePausedEventArg event_arg;
+                    event_listener_->OnPlayerStatePaused(event_arg);
                 }
-                else {
-                    player_state_ = PlayerState::Playing;
-                    if (event_listener_) {
-                        PlayerStatePlayingEventArg event_arg;
-                        event_listener_->OnPlayerStatePlaying(event_arg);
-                    }
+            }
+            else {
+                player_state_ = PlayerState::Playing;
+                if (event_listener_) {
+                    PlayerStatePlayingEventArg event_arg;
+                    event_listener_->OnPlayerStatePlaying(event_arg);
                 }
             }
         });
 
         auto self = shared_from_this();
+        ++running_thread_cnt_;
         std::thread([this, self]() {
             ReadThread();
+            OnThreadExit();
         }).detach();
 
         if (audio_decoder_) {
+            ++running_thread_cnt_;
             std::thread([this, self]() {
                 DecodeAudioThread();
+                OnThreadExit();
             }).detach();
+            ++running_thread_cnt_;
             std::thread([this, self]() {
                 AudioThread();
+                OnThreadExit();
             }).detach();
         }
 
         if (video_decoder_) {
+            ++running_thread_cnt_;
             std::thread([this, self]() {
                 DecodeVideoThread();
+                OnThreadExit();
             }).detach();
+            ++running_thread_cnt_;
             std::thread([this, self]() {
                 RenderThread();
+                OnThreadExit();
             }).detach();
         }
 
+        open_success = true;
     } while (false);
 }
 
 auto Player::ReadThread() -> void
 {
     while (true) {
+        bool is_close_requested = false;
         std::int64_t seek_target_us = 0;
         bool is_seek_requested = false;
         {
             std::unique_lock<std::mutex> lck(mutex_);
+            is_close_requested = IsCloseRequested(false);
             is_seek_requested = is_seek_requested_;
             seek_target_us = seek_target_us_;
+        }
+        if (is_close_requested) {
+            return;
         }
         if (is_seek_requested) {
             using seek_tb = std::ratio<1000000, AV_TIME_BASE>::type;
@@ -307,7 +350,7 @@ auto Player::ReadThread() -> void
             {
                 std::unique_lock<std::mutex> lck(mutex_);
                 read_pkt_cv_.wait(lck, [this]() -> bool {
-                    return video_pkt_queue_.Size() < 10 || audio_pkt_queue_.Size() < 10;
+                    return IsCloseRequested(false) || (video_stream_index_ != -1 && video_pkt_queue_.Size() < 10) || (audio_stream_index_ != -1 && audio_pkt_queue_.Size() < 10);
                 });
             }
         }
@@ -321,6 +364,9 @@ auto Player::ReadThread() -> void
 auto Player::DecodeAudioThread() -> void
 {
     while (true) {
+        if (IsCloseRequested(true)) {
+            return;
+        }
         auto frame = Frame{};
         auto receive_frame_err = audio_decoder_->ReceiveFrame(frame);
         if (receive_frame_err == DecodeErrors::Ok) {
@@ -337,7 +383,7 @@ auto Player::DecodeAudioThread() -> void
                 audio_frame_queue_.Push(std::move(frame));
                 audio_output_cv_.notify_one();
                 audio_decode_cv_.wait(lck, [this]() -> bool {
-                    return audio_frame_queue_.Size() < 10;
+                    return IsCloseRequested(false) || audio_frame_queue_.Size() < 10;
                 });
             }
         }
@@ -346,8 +392,11 @@ auto Player::DecodeAudioThread() -> void
                 auto lck = std::unique_lock<std::mutex>(mutex_);
                 read_pkt_cv_.notify_one();
                 audio_decode_cv_.wait(lck, [this]() -> bool {
-                    return !audio_pkt_queue_.Empty();
+                    return IsCloseRequested(false) || !audio_pkt_queue_.Empty();
                 });
+                if (IsCloseRequested(false)) {
+                    return;
+                }
                 auto packet = audio_pkt_queue_.Pop();
                 int packet_serial = packet.Serial().value();
                 audio_decoder_->SetPacketSerial(packet_serial);
@@ -372,6 +421,9 @@ auto Player::DecodeVideoThread() -> void
 {
     AVRational frame_rate = av_guess_frame_rate(format_ctx_, format_ctx_->streams[video_stream_index_], nullptr);
     while (true) {
+        if (IsCloseRequested(true)) {
+            return;
+        }
         Frame frame;
         auto receive_frame_err = video_decoder_->ReceiveFrame(frame);
         if (receive_frame_err == DecodeErrors::Ok) {
@@ -385,7 +437,7 @@ auto Player::DecodeVideoThread() -> void
                 video_frame_queue_.Push(std::move(frame));
                 video_render_cv_.notify_one();
                 video_decode_cv_.wait(lck, [this]() -> bool {
-                    return video_frame_queue_.Size() < 10;
+                    return IsCloseRequested(false) || video_frame_queue_.Size() < 10;
                 });
             }
         }
@@ -393,8 +445,11 @@ auto Player::DecodeVideoThread() -> void
             auto lck = std::unique_lock<std::mutex>(mutex_);
             read_pkt_cv_.notify_one();
             video_decode_cv_.wait(lck, [this]() -> bool {
-                return !video_pkt_queue_.Empty();
+                return IsCloseRequested(false) || !video_pkt_queue_.Empty();
             });
+            if (IsCloseRequested(false)) {
+                return;
+            }
             auto packet = video_pkt_queue_.Pop();
             int packet_serial = packet.Serial().value();
             video_decoder_->SetPacketSerial(packet_serial);
@@ -424,8 +479,11 @@ auto Player::RenderThread() -> void
             std::unique_lock<std::mutex> lck(mutex_);
             if (paused_) {
                 video_render_cv_.wait(lck, [this]() {
-                    return !paused_;
+                    return IsCloseRequested(false) || !paused_;
                 });
+            }
+            if (IsCloseRequested(false)) {
+                return;
             }
         }
 
@@ -441,7 +499,14 @@ auto Player::RenderThread() -> void
         }
         if (!frame)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<std::int64_t>(kLightPlayerRefreshRate * 1000)));
+            std::unique_lock<std::mutex> lck(mutex_);
+            auto wait_duration = std::chrono::milliseconds(static_cast<std::int64_t>(kLightPlayerRefreshRate * 1000));
+            video_render_cv_.wait_for(lck, wait_duration, [this]() -> bool {
+                return IsCloseRequested(false);
+            });
+            if (IsCloseRequested(false)) {
+                return;
+            }
             continue;
         }
         auto last_show_frame = last_show_frame_;
@@ -516,7 +581,16 @@ auto Player::RenderThread() -> void
             // TODO(Light Lin):
             av_frame_free(&pFrameYUV);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<std::int64_t>(remaining_time * 1000)));
+        {
+            std::unique_lock<std::mutex> lck(mutex_);
+            auto wait_duration = std::chrono::milliseconds(static_cast<std::int64_t>(remaining_time * 1000));
+            video_render_cv_.wait_for(lck, wait_duration, [this]() {
+                return IsCloseRequested(false);
+            });
+            if (IsCloseRequested(false)) {
+                return;
+            }
+        }
     }
 }
 
@@ -580,9 +654,13 @@ auto Player::AudioThread() -> void
         double audio_clock = NAN;
         int idx = 0;
         while (true) {
+            if (IsCloseRequested(true)) {
+                break;
+            }
             auto& wave_hdr = vec_wave_hdr[idx];
             if (wave_hdr.lpData != nullptr) {
                 ResetEvent(hEvent);
+                // TODO(Light Lin): 
                 if ((wave_hdr.dwFlags & WHDR_DONE) == 0) {
                     WaitForSingleObject(hEvent, INFINITE);
                 }
@@ -596,8 +674,11 @@ auto Player::AudioThread() -> void
                 auto lck = std::unique_lock<std::mutex>(mutex_);
                 if (paused_) {
                     audio_output_cv_.wait(lck, [this]() {
-                        return !paused_;
+                        return IsCloseRequested(false) || !paused_;
                     });
+                }
+                if (IsCloseRequested(false)) {
+                    
                 }
             }
 
@@ -655,6 +736,8 @@ auto Player::AudioThread() -> void
             }
             idx = (idx + 1) % vec_wave_hdr.size();
         }
+        waveOutReset(hwo);
+        waveOutClose(hwo);
     } while (false);
 }
 
@@ -692,6 +775,32 @@ auto Player::ComputeVideoFrameTargetDelay(double delay) const -> double
         }
     }
     return delay;
+}
+
+auto Player::IsCloseRequested(bool lock) const -> bool
+{
+    if (lock) {
+        std::unique_lock<std::mutex> lck(mutex_);
+        return is_close_requested_;
+    }
+    return is_close_requested_;
+}
+
+auto Player::OnThreadExit() -> void
+{
+    auto self = shared_from_this();
+    auto running_thread_cnt = --running_thread_cnt_;
+    if (running_thread_cnt == 0) {
+        ui_executor_->Post([this, self]() {
+            if (player_state_ == PlayerState::Closing) {
+                player_state_ = PlayerState::Closed;
+                if (event_listener_) {
+                    PlayerStateClosedEventArg event_arg;
+                    event_listener_->OnPlayerStateClosed(event_arg);
+                }
+            }
+        });
+    }
 }
 
 } // namespace lp
