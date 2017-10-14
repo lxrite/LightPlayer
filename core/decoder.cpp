@@ -49,6 +49,9 @@ auto Decoder::ReceiveFrame(Frame& frame) -> DecodeErrors
     case AVERROR(EAGAIN):
         err = DecodeErrors::Again;
         break;
+    case AVERROR_EOF:
+        err = DecodeErrors::EndOfFile;
+        break;
     default:
         break;
     }

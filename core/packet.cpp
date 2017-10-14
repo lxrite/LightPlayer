@@ -70,4 +70,18 @@ auto Packet::MakeFlushPacket() -> Packet
     return packet;
 }
 
+auto Packet::MakeNullPacket() -> Packet
+{
+    auto packet = Packet{};
+    auto raw_pkt = av_packet_alloc();
+    if (raw_pkt == nullptr) {
+        throw std::bad_alloc();
+    }
+    raw_pkt->data = nullptr;
+    raw_pkt->size = 0;
+    packet.raw_packet_host_ = std::make_shared<impl::RawPacketHost>(raw_pkt);
+    packet.packet_type_ = PacketType::Normal;
+    return packet;
+}
+
 } // namespace lp

@@ -354,6 +354,23 @@ auto Player::ReadThread() -> void
                 });
             }
         }
+        else if (get_packet_err == DemuxErrors::EndOfFile) {
+            std::unique_lock<std::mutex> lck(mutex_);
+            is_end_of_file_ = true;
+            if (audio_stream_index_ != -1) {
+                auto null_pkt = Packet::MakeNullPacket();
+                null_pkt.SetSerial(audio_pkt_queue_.Serial());
+                audio_pkt_queue_.Push(null_pkt);
+                audio_decode_cv_.notify_one();
+            }
+            if (video_stream_index_ != -1) {
+                auto null_pkt = Packet::MakeNullPacket();
+                null_pkt.SetSerial(video_pkt_queue_.Serial());
+                video_pkt_queue_.Push(null_pkt);
+                video_decode_cv_.notify_one();
+            }
+            break;
+        }
         else {
             // TODO(Light Lin):
             break;
@@ -410,6 +427,29 @@ auto Player::DecodeAudioThread() -> void
                 continue;
             }
         }
+        else if (receive_frame_err == DecodeErrors::EndOfFile) {
+            std::unique_lock<std::mutex> lck(mutex_);
+            audio_decode_cv_.wait(lck, [this]() -> bool {
+                return IsCloseRequested(false) || audio_frame_queue_.Empty();
+            });
+            if (IsCloseRequested(false)) {
+                break;
+            }
+            is_end_of_audio_stream_ = true;
+            if (video_stream_index_ == -1 || is_end_of_video_stream_) {
+                auto self = shared_from_this();
+                ui_executor_->Post([this, self]() {
+                    // TODO(Light Lin):
+                    player_state_ = PlayerState::Ended;
+                    if (event_listener_) {
+                        PlayerStateMediaEndEventArg event_arg;
+                        event_listener_->OnPlayerStateMediaEnd(event_arg);
+                    }
+                });
+            }
+            // TODO(Light Lin):
+            break;
+        }
         else {
             // TODO(Light Lin):
             break;
@@ -461,6 +501,29 @@ auto Player::DecodeVideoThread() -> void
             }
             video_decoder_->SendPacket(packet);
             continue;
+        }
+        else if (receive_frame_err == DecodeErrors::EndOfFile) {
+            std::unique_lock<std::mutex> lck(mutex_);
+            video_decode_cv_.wait(lck, [this]() -> bool {
+                return IsCloseRequested(false) || video_frame_queue_.Empty();
+            });
+            if (IsCloseRequested(false)) {
+                break;
+            }
+            is_end_of_video_stream_ = true;
+            if (audio_stream_index_ == -1 || is_end_of_audio_stream_) {
+                auto self = shared_from_this();
+                ui_executor_->Post([this, self]() {
+                    // TODO(Light Lin):
+                    player_state_ = PlayerState::Ended;
+                    if (event_listener_) {
+                        PlayerStateMediaEndEventArg event_arg;
+                        event_listener_->OnPlayerStateMediaEnd(event_arg);
+                    }
+                });
+            }
+            // TODO(Light Lin):
+            break;
         }
         else {
             // TODO(Light Lin):

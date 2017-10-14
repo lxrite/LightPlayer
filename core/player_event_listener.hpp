@@ -20,6 +20,7 @@ public:
     virtual auto OnPlayerStateOpened(const PlayerStateOpenedEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStatePlaying(const PlayerStatePlayingEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStatePaused(const PlayerStatePausedEventArg& event_arg) -> void = 0;
+    virtual auto OnPlayerStateMediaEnd(const PlayerStateMediaEndEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStateClosing(const PlayerStateClosingEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStateClosed(const PlayerStateClosedEventArg& event_arg) -> void = 0;
 };

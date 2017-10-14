@@ -33,6 +33,9 @@ auto Demuxer::GetPacket(Packet& packet)-> DemuxErrors
          raw_pkt = nullptr;
          err = DemuxErrors::Ok;
         break;
+    case AVERROR_EOF:
+        err = DemuxErrors::EndOfFile;
+        break;
     default:
         break;
     }

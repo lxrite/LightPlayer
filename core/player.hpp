@@ -100,6 +100,9 @@ private:
     std::int64_t seek_target_us_ = 0;
     bool is_close_requested_ = false;
     std::atomic<int> running_thread_cnt_ = 0;
+    bool is_end_of_file_ = false;
+    bool is_end_of_video_stream_ = false;
+    bool is_end_of_audio_stream_ = false;
 };
 
 } // namespace lp

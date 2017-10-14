@@ -20,6 +20,8 @@ struct PlayerStatePlayingEventArg {};
 
 struct PlayerStatePausedEventArg {};
 
+struct PlayerStateMediaEndEventArg {};
+
 struct PlayerStateClosingEventArg {};
 
 struct PlayerStateClosedEventArg {};

@@ -15,6 +15,7 @@ enum class DemuxErrors {
     Other,
     Again,
     OutOfMemory,
+    EndOfFile,
 };
 
 enum class DecodeErrors {
@@ -22,6 +23,7 @@ enum class DecodeErrors {
     Other,
     Again,
     OutOfMemory,
+    EndOfFile,
 };
 
 } // namespace lp

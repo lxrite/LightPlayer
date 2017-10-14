@@ -63,6 +63,7 @@ public:
 
     static auto AttachRawPacket(RawPacketType* raw_pkt) -> Packet;
     static auto MakeFlushPacket() -> Packet;
+    static auto MakeNullPacket() -> Packet;
 
 private:
     std::shared_ptr<impl::RawPacketHost> raw_packet_host_;
