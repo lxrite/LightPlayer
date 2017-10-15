@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <future>
 #include <vector>
 
 extern "C" {
@@ -204,8 +205,13 @@ auto Player::DoOpen(const std::string& url) -> void
             auto audio_codecpar = format_ctx_->streams[audio_stream_index_]->codecpar;
             auto audio_codec = avcodec_find_decoder(audio_codecpar->codec_id);
             if (audio_codec != nullptr) {
-                // TODO(Light Lin): OpenDecoder is not thread safe
-                audio_decoder_ = Decoder::OpenDecoder(audio_codecpar, audio_codec, nullptr);
+                std::promise<std::shared_ptr<Decoder>> p;
+                auto f = p.get_future();
+                ui_executor_->Post([&p, audio_codecpar, audio_codec]() {
+                    auto audio_decoder = Decoder::OpenDecoder(audio_codecpar, audio_codec, nullptr);
+                    p.set_value(audio_decoder);
+                });
+                audio_decoder_ = f.get();
             }
         }
 
@@ -216,8 +222,13 @@ auto Player::DoOpen(const std::string& url) -> void
             video_pix_fmt_ = static_cast<AVPixelFormat>(video_codecpar->format);
             auto video_codec = avcodec_find_decoder(video_codecpar->codec_id);
             if (video_codec != nullptr) {
-                // TODO(Light Lin): OpenDecoder is not thread safe
-                video_decoder_ = Decoder::OpenDecoder(video_codecpar, video_codec, nullptr);
+                std::promise<std::shared_ptr<Decoder>> p;
+                auto f = p.get_future();
+                ui_executor_->Post([&p, video_codecpar, video_codec]() {
+                    auto video_decoder = Decoder::OpenDecoder(video_codecpar, video_codec, nullptr);
+                    p.set_value(video_decoder);
+                });
+                video_decoder_ = f.get();
             }
         }
 
