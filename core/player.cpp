@@ -22,6 +22,8 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+#include "renderer_event_listener_impl.hpp"
+
 static const double kLightPlayerRefreshRate = 0.01;
 static const double kLightPlayerAVSyncThresholdMax = 0.1;
 static const double kLightPlayerAVSyncThresholdMin = 0.04;
@@ -152,7 +154,19 @@ auto Player::GetState() const noexcept -> PlayerState
 
 auto Player::SetRenderer(const std::shared_ptr<Renderer>& renderer) -> void
 {
+    if (renderer_ != nullptr) {
+        renderer_->SetEventListener(nullptr);
+    }
     renderer_ = renderer;
+    if (renderer_) {
+        auto renderer_event_listener = std::make_shared<impl::RendererEventListenerImpl>();
+        renderer_event_listener->OnSizeChangedListener = [this]() {
+            std::unique_lock<std::mutex> lck(mutex_);
+            force_refresh_ = true;
+            video_render_cv_.notify_one();
+        };
+        renderer_->SetEventListener(renderer_event_listener);
+    }
 }
 
 auto Player::SetEventListener(const std::shared_ptr<PlayerEventListener>& event_listener) -> void

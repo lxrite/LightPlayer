@@ -103,6 +103,7 @@ private:
     bool is_end_of_file_ = false;
     bool is_end_of_video_stream_ = false;
     bool is_end_of_audio_stream_ = false;
+    bool force_refresh_ = false;
 };
 
 } // namespace lp

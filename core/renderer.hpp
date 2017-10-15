@@ -8,6 +8,9 @@
 #ifndef LIGHT_PLAYER_RENDERER_HPP
 #define LIGHT_PLAYER_RENDERER_HPP
 
+#include <memory>
+
+#include "renderer_event_listener.hpp"
 #include "types.hpp"
 
 namespace lp
@@ -18,6 +21,7 @@ public:
     virtual ~Renderer() noexcept {}
     virtual auto Render(const byte_t* data, std::uint32_t width, std::uint32_t height) noexcept -> void = 0;
     virtual auto Size() const noexcept -> Size = 0;
+    virtual auto SetEventListener(const std::shared_ptr<RendererEventListener>& event_listener) noexcept -> void = 0;
 };
 
 } // namespace lp
