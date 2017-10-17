@@ -215,7 +215,7 @@ auto Player::DoOpen(const std::string& url) -> void
         audio_stream_index_ = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
         video_stream_index_ = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
 
-        if (audio_stream_index_ != -1) {
+        if (audio_stream_index_ >= 0) {
             auto audio_codecpar = format_ctx_->streams[audio_stream_index_]->codecpar;
             auto audio_codec = avcodec_find_decoder(audio_codecpar->codec_id);
             if (audio_codec != nullptr) {
@@ -229,7 +229,7 @@ auto Player::DoOpen(const std::string& url) -> void
             }
         }
 
-        if (video_stream_index_ != -1) {
+        if (video_stream_index_ >= 0) {
             auto video_codecpar = format_ctx_->streams[video_stream_index_]->codecpar;
             video_width_ = video_codecpar->width;
             video_height_ = video_codecpar->height;
@@ -375,20 +375,20 @@ auto Player::ReadThread() -> void
             {
                 std::unique_lock<std::mutex> lck(mutex_);
                 read_pkt_cv_.wait(lck, [this]() -> bool {
-                    return IsCloseRequested(false) || (video_stream_index_ != -1 && video_pkt_queue_.Size() < 10) || (audio_stream_index_ != -1 && audio_pkt_queue_.Size() < 10);
+                    return IsCloseRequested(false) || (video_stream_index_ >= 0 && video_pkt_queue_.Size() < 10) || (audio_stream_index_ >= 0 && audio_pkt_queue_.Size() < 10);
                 });
             }
         }
         else if (get_packet_err == DemuxErrors::EndOfFile) {
             std::unique_lock<std::mutex> lck(mutex_);
             is_end_of_file_ = true;
-            if (audio_stream_index_ != -1) {
+            if (audio_stream_index_ >= 0) {
                 auto null_pkt = Packet::MakeNullPacket();
                 null_pkt.SetSerial(audio_pkt_queue_.Serial());
                 audio_pkt_queue_.Push(null_pkt);
                 audio_decode_cv_.notify_one();
             }
-            if (video_stream_index_ != -1) {
+            if (video_stream_index_ >= 0) {
                 auto null_pkt = Packet::MakeNullPacket();
                 null_pkt.SetSerial(video_pkt_queue_.Serial());
                 video_pkt_queue_.Push(null_pkt);
@@ -461,7 +461,7 @@ auto Player::DecodeAudioThread() -> void
                 break;
             }
             is_end_of_audio_stream_ = true;
-            if (video_stream_index_ == -1 || is_end_of_video_stream_) {
+            if (video_stream_index_ < 0 || is_end_of_video_stream_) {
                 auto self = shared_from_this();
                 ui_executor_->Post([this, self]() {
                     // TODO(Light Lin):
@@ -536,7 +536,7 @@ auto Player::DecodeVideoThread() -> void
                 break;
             }
             is_end_of_video_stream_ = true;
-            if (audio_stream_index_ == -1 || is_end_of_audio_stream_) {
+            if (audio_stream_index_ < 0 || is_end_of_audio_stream_) {
                 auto self = shared_from_this();
                 ui_executor_->Post([this, self]() {
                     // TODO(Light Lin):
