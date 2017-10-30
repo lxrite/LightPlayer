@@ -19,6 +19,11 @@ struct Size {
 
 using byte_t = unsigned char;
 
+enum class PixelFormat
+{
+    PIXEL_FORMAT_YUV420P = 0,
+};
+
 } // namespace lp
 
 #endif // LIGHT_PLAYER_TYPES_HPP

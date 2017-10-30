@@ -22,8 +22,6 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include "renderer_event_listener_impl.hpp"
-
 static const double kLightPlayerRefreshRate = 0.01;
 static const double kLightPlayerAVSyncThresholdMax = 0.1;
 static const double kLightPlayerAVSyncThresholdMin = 0.04;
@@ -154,19 +152,7 @@ auto Player::GetState() const noexcept -> PlayerState
 
 auto Player::SetRenderer(const std::shared_ptr<Renderer>& renderer) -> void
 {
-    if (renderer_ != nullptr) {
-        renderer_->SetEventListener(nullptr);
-    }
     renderer_ = renderer;
-    if (renderer_) {
-        auto renderer_event_listener = std::make_shared<impl::RendererEventListenerImpl>();
-        renderer_event_listener->OnSizeChangedListener = [this]() {
-            std::unique_lock<std::mutex> lck(mutex_);
-            force_refresh_ = true;
-            video_render_cv_.notify_one();
-        };
-        renderer_->SetEventListener(renderer_event_listener);
-    }
 }
 
 auto Player::SetEventListener(const std::shared_ptr<PlayerEventListener>& event_listener) -> void
@@ -559,7 +545,8 @@ auto Player::DecodeVideoThread() -> void
 
 auto Player::RenderThread() -> void
 {
-    auto target_pix_fmt = AV_PIX_FMT_BGRA;
+    auto target_pix_fmt = AV_PIX_FMT_YUV420P;
+    auto pixel_format = PixelFormat::PIXEL_FORMAT_YUV420P;
     SwsContext* img_convert_ctx = nullptr;
 
     while (true) {
@@ -654,18 +641,15 @@ auto Player::RenderThread() -> void
         frame = last_show_frame;
         auto renderer = renderer_;
         if (display && renderer) {
-            auto target_size = renderer->Size();
-            auto target_width = target_size.width == 0 ? 1 : target_size.width;
-            auto target_height = target_size.height == 0 ? 1 : target_size.height;
-            auto output_buffer_size = av_image_get_buffer_size(target_pix_fmt, target_width, target_height, 1);
+            auto output_buffer_size = av_image_get_buffer_size(target_pix_fmt, video_width_, video_height_, 1);
             auto output_buf = std::unique_ptr<std::uint8_t[]>(new std::uint8_t[output_buffer_size]);
             auto pFrameYUV = av_frame_alloc();
-            av_image_fill_arrays(pFrameYUV->data, pFrameYUV->linesize, output_buf.get(), target_pix_fmt, target_width, target_height, 1);
+            av_image_fill_arrays(pFrameYUV->data, pFrameYUV->linesize, output_buf.get(), target_pix_fmt, video_width_, video_height_, 1);
 
-            img_convert_ctx = sws_getCachedContext(img_convert_ctx, video_width_, video_height_, video_pix_fmt_, target_width, target_height, target_pix_fmt, SWS_BICUBIC, NULL, NULL, NULL);
+            img_convert_ctx = sws_getCachedContext(img_convert_ctx, video_width_, video_height_, video_pix_fmt_, video_width_, video_height_, target_pix_fmt, SWS_BICUBIC, NULL, NULL, NULL);
             sws_scale(img_convert_ctx, frame->RawFramePtr()->data, frame->RawFramePtr()->linesize, 0, video_height_, pFrameYUV->data, pFrameYUV->linesize);
 
-            renderer->Render(output_buf.get(), target_width, target_height);
+            renderer->Render(pixel_format, output_buf.get(), video_width_, video_height_);
             // TODO(Light Lin):
             av_frame_free(&pFrameYUV);
         }
