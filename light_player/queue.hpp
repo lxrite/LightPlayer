@@ -1,7 +1,7 @@
 ﻿/*
  *    queue.hpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -51,6 +51,7 @@ public:
     auto Size() -> std::size_t;
     auto Peek() -> std::optional<Frame>;
     auto PeekNext() -> std::optional<Frame>;
+    auto Clear() -> void;
 
 private:
     std::list<Frame> frame_list;

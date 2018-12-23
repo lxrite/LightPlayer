@@ -1,7 +1,7 @@
 ﻿/*
  *    player_state.hpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -19,7 +19,6 @@ enum class PlayerState {
     Ended,
     Failed,
     Closing,
-    Closed,
 };
 
 } // namespace lp

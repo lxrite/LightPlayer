@@ -34,15 +34,11 @@ PlayerImpl::PlayerImpl(Executor* ui_executor)
 {
     video_clock_ = std::make_shared<Clock>(video_pkt_queue_.SerialPtr());
     audio_clock_ = std::make_shared<Clock>(audio_pkt_queue_.SerialPtr());
-    format_ctx_ = avformat_alloc_context();
-    if (format_ctx_ == nullptr) {
-        throw std::bad_alloc();
-    }
 }
 
 PlayerImpl::~PlayerImpl()
 {
-    avformat_free_context(format_ctx_);
+    Reset();
 }
 
 auto PlayerImpl::Open(const std::string& url) -> PlayerOperationResult
@@ -126,7 +122,7 @@ auto PlayerImpl::Seek(std::uint64_t time_us) -> PlayerOperationResult
 
 auto PlayerImpl::Close() -> PlayerOperationResult
 {
-    if (player_state_ == PlayerState::Closed) {
+    if (player_state_ == PlayerState::Ready) {
         return PlayerOperationResult::Done;
     }
     else if (player_state_ == PlayerState::Closing) {
@@ -211,6 +207,10 @@ auto PlayerImpl::DoOpen(const std::string& url) -> void
     bool open_success = false;
     do
     {
+        format_ctx_ = avformat_alloc_context();
+        if (format_ctx_ == nullptr) {
+            break;
+        }
         if (avformat_open_input(&format_ctx_, url.c_str(), nullptr, nullptr) != 0) {
             break;
         }
@@ -907,13 +907,36 @@ auto PlayerImpl::OnThreadExit() -> void
     if (running_thread_cnt == 0) {
         ui_executor_->Post([this, self]() {
             if (player_state_ == PlayerState::Closing) {
-                player_state_ = PlayerState::Closed;
+                Reset();
+                player_state_ = PlayerState::Ready;
                 if (event_listener_) {
                     PlayerStateClosedEventArg event_arg;
                     event_listener_->OnPlayerStateClosed(event_arg);
                 }
             }
         });
+    }
+}
+
+auto PlayerImpl::Reset() -> void
+{
+    is_close_requested_ = false;
+    last_show_frame_ = {};
+    video_pkt_queue_.Flush();
+    audio_pkt_queue_.Flush();
+    video_clock_ = std::make_shared<Clock>(video_pkt_queue_.SerialPtr());
+    audio_clock_ = std::make_shared<Clock>(audio_pkt_queue_.SerialPtr());
+    video_frame_queue_.Clear();
+    audio_frame_queue_.Clear();
+    demuxer_ = nullptr;
+    audio_decoder_ = nullptr;
+    video_decoder_ = nullptr;
+    use_audio_position_ = false;
+    audio_stream_index_ - 1;
+    video_stream_index_ - 1;
+    if (format_ctx_ != nullptr) {
+        avformat_close_input(&format_ctx_);
+        avformat_free_context(format_ctx_);
     }
 }
 

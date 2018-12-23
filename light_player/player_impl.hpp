@@ -52,6 +52,7 @@ private:
     auto DecodeVideoThread() -> void;
     auto RenderThread() -> void;
     auto AudioThread() -> void;
+    auto Reset() -> void;
 
 private:
     auto VideoFrameDuration(const Frame& frame, const Frame& next_frame) const -> double;
@@ -80,7 +81,7 @@ private:
     std::condition_variable audio_decode_cv_;
     std::shared_ptr<Clock> video_clock_;
     std::shared_ptr<Clock> audio_clock_;
-    AVFormatContext* format_ctx_;
+    AVFormatContext* format_ctx_ = nullptr;
     Renderer* renderer_ = nullptr;
     std::thread render_thread_;
     std::uint32_t video_width_;

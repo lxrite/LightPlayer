@@ -1,7 +1,7 @@
 ﻿/*
  *    player_event_arg.hpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -9,8 +9,6 @@
 #define LIGHT_PLAYER_PLAYER_EVENT_ARG_HPP
 
 namespace lp {
-
-struct PlayerStateReadyEventArg {};
 
 struct PlayerStateOpeningEventArg {};
 

@@ -1,7 +1,7 @@
 ﻿/*
  *    queue.cpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -118,6 +118,11 @@ auto FrameQueue::PeekNext() ->std::optional<Frame>
     else {
         return { *std::next(frame_list.begin()) };
     }
+}
+
+auto FrameQueue::Clear() -> void
+{
+    frame_list.clear();
 }
 
 } // namespace lp

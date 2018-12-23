@@ -1,7 +1,7 @@
 ﻿/*
  *    player_event_listener.hpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -15,7 +15,6 @@ namespace lp {
 class PlayerEventListener {
 public:
     virtual ~PlayerEventListener() {};
-    virtual auto OnPlayerStateReady(const PlayerStateReadyEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStateOpening(const PlayerStateOpeningEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStateOpened(const PlayerStateOpenedEventArg& event_arg) -> void = 0;
     virtual auto OnPlayerStatePlaying(const PlayerStatePlayingEventArg& event_arg) -> void = 0;
