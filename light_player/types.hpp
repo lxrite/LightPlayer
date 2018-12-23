@@ -1,7 +1,7 @@
 ﻿/*
  *    types.hpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -22,6 +22,13 @@ using byte_t = unsigned char;
 enum class PixelFormat
 {
     PIXEL_FORMAT_YUV420P = 0,
+    PIXEL_FORMAT_BGRA = 1,
+};
+
+enum class PlayerOperationResult {
+    Done,
+    Pending,
+    Fail,
 };
 
 } // namespace lp
