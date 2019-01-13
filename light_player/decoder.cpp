@@ -42,6 +42,9 @@ auto Decoder::ReceiveFrame(Frame& frame) -> DecodeErrors
     auto err = DecodeErrors::Other;
     switch (ret) {
     case 0:
+        if (codec_ctx_->codec_type == AVMEDIA_TYPE_VIDEO) {
+            raw_frame->pts = raw_frame->best_effort_timestamp;
+        }
         frame = Frame::AttachRawFrame(raw_frame);
         raw_frame = nullptr;
         err = DecodeErrors::Ok;
