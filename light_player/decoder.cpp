@@ -1,7 +1,7 @@
 ﻿/*
  *    decoder.cpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -77,7 +77,7 @@ auto Decoder::PacketSerial() const -> std::optional<int>
 
 auto Decoder::GetPacketTimeBase() const -> AVRational
 {
-    return av_codec_get_pkt_timebase(codec_ctx_);
+    return codec_ctx_->pkt_timebase;
 }
 
 auto Decoder::GetCodecContext() const -> AVCodecContext*

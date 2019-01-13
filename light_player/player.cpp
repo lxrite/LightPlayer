@@ -79,9 +79,4 @@ auto Player::SetRenderOptions(const RenderOptions& options) -> bool
     return (*reinterpret_cast<std::shared_ptr<PlayerImpl>*>(impl_))->SetRenderOptions(options);
 }
 
-void Player::Initialize()
-{
-    av_register_all();
-}
-
 } // namespace lp

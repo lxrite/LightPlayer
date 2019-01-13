@@ -39,8 +39,6 @@ public:
 
     auto SetRenderOptions(const RenderOptions& options) -> bool;
 
-    static void Initialize();
-
 private:
     void* impl_;
 };
