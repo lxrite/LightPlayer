@@ -1,7 +1,7 @@
 ﻿/*
  *    player_impl.cpp:
  *
- *    Copyright (C) 2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -187,6 +187,17 @@ auto PlayerImpl::SetEventListener(PlayerEventListener* event_listener) -> void
     event_listener_ = event_listener;
 }
 
+auto PlayerImpl::SetRenderOptions(const RenderOptions& options) -> bool
+{
+    if (options.align < 1
+        || GetAVPixelFormat(options.pixel_format) == AV_PIX_FMT_NONE) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lck(mutex_);
+    render_options_ = options;
+    return true;
+}
+
 auto PlayerImpl::DoOpen(const std::string& url) -> void
 {
     if (IsCloseRequested(true)) {
@@ -244,8 +255,6 @@ auto PlayerImpl::DoOpen(const std::string& url) -> void
 
         if (video_stream_index_ >= 0) {
             auto video_codecpar = format_ctx_->streams[video_stream_index_]->codecpar;
-            video_width_ = video_codecpar->width;
-            video_height_ = video_codecpar->height;
             video_pix_fmt_ = static_cast<AVPixelFormat>(video_codecpar->format);
             auto video_codec = avcodec_find_decoder(video_codecpar->codec_id);
             if (video_codec != nullptr) {
@@ -412,6 +421,20 @@ auto PlayerImpl::ReadThread() -> void
         }
         else {
             // TODO(Light Lin):
+            std::lock_guard<std::mutex> lck(mutex_);
+            is_end_of_file_ = true;
+            if (audio_stream_index_ >= 0) {
+                auto null_pkt = Packet::MakeNullPacket();
+                null_pkt.SetSerial(audio_pkt_queue_.Serial());
+                audio_pkt_queue_.Push(null_pkt);
+                audio_decode_cv_.notify_one();
+            }
+            if (video_stream_index_ >= 0) {
+                auto null_pkt = Packet::MakeNullPacket();
+                null_pkt.SetSerial(video_pkt_queue_.Serial());
+                video_pkt_queue_.Push(null_pkt);
+                video_decode_cv_.notify_one();
+            }
             break;
         }
     }
@@ -573,10 +596,19 @@ auto PlayerImpl::DecodeVideoThread() -> void
 
 auto PlayerImpl::RenderThread() -> void
 {
-    auto target_pix_fmt = AV_PIX_FMT_YUV420P;
     auto pixel_format = PixelFormat::PIXEL_FORMAT_YUV420P;
-    SwsContext* img_convert_ctx = nullptr;
+    int align = 1;
+    RenderOptions render_options;
+    {
+        std::lock_guard<std::mutex> lck(mutex_);
+        align = render_options_.align;
+        pixel_format = render_options_.pixel_format;
+    }
+    auto target_pix_fmt = GetAVPixelFormat(pixel_format);
 
+    SwsContext* img_convert_ctx = nullptr;
+    std::unique_ptr<lp::byte_t> output_buffer;
+    std::size_t output_buffer_size = 0;
     while (true) {
         {
             std::unique_lock<std::mutex> lck(mutex_);
@@ -679,15 +711,20 @@ auto PlayerImpl::RenderThread() -> void
             }
         }
         if (display && renderer) {
-            auto output_buffer_size = av_image_get_buffer_size(target_pix_fmt, video_width_, video_height_, 1);
-            auto output_buf = std::unique_ptr<std::uint8_t[]>(new std::uint8_t[output_buffer_size]);
+            auto vframe_width = frame->RawFramePtr()->width;
+            auto vframe_height = frame->RawFramePtr()->height;
+            auto output_buffer_size_need = av_image_get_buffer_size(target_pix_fmt, vframe_width, vframe_height, align);
+            if (output_buffer == nullptr || output_buffer_size < output_buffer_size_need) {
+                output_buffer.reset(new std::uint8_t[output_buffer_size_need]);
+                output_buffer_size = output_buffer_size_need;
+            }
             auto pFrameYUV = av_frame_alloc();
-            av_image_fill_arrays(pFrameYUV->data, pFrameYUV->linesize, output_buf.get(), target_pix_fmt, video_width_, video_height_, 1);
+            av_image_fill_arrays(pFrameYUV->data, pFrameYUV->linesize, output_buffer.get(), target_pix_fmt, vframe_width, vframe_height, align);
 
-            img_convert_ctx = sws_getCachedContext(img_convert_ctx, video_width_, video_height_, video_pix_fmt_, video_width_, video_height_, target_pix_fmt, SWS_BICUBIC, NULL, NULL, NULL);
-            sws_scale(img_convert_ctx, frame->RawFramePtr()->data, frame->RawFramePtr()->linesize, 0, video_height_, pFrameYUV->data, pFrameYUV->linesize);
+            img_convert_ctx = sws_getCachedContext(img_convert_ctx, vframe_width, vframe_height, static_cast<AVPixelFormat>(frame->RawFramePtr()->format), vframe_width, vframe_height, target_pix_fmt, SWS_BICUBIC, NULL, NULL, NULL);
+            sws_scale(img_convert_ctx, frame->RawFramePtr()->data, frame->RawFramePtr()->linesize, 0, vframe_height, pFrameYUV->data, pFrameYUV->linesize);
 
-            renderer->Render(pixel_format, output_buf.get(), video_width_, video_height_);
+            renderer->Render(pixel_format, output_buffer.get(), vframe_width, vframe_height);
             renderer->Release();
             // TODO(Light Lin):
             av_frame_free(&pFrameYUV);
@@ -937,6 +974,18 @@ auto PlayerImpl::Reset() -> void
     if (format_ctx_ != nullptr) {
         avformat_close_input(&format_ctx_);
         avformat_free_context(format_ctx_);
+    }
+}
+
+auto PlayerImpl::GetAVPixelFormat(PixelFormat pf) -> AVPixelFormat
+{
+    switch (pf) {
+    case PixelFormat::PIXEL_FORMAT_YUV420P:
+        return AV_PIX_FMT_YUV420P;
+    case PixelFormat::PIXEL_FORMAT_BGRA:
+        return AV_PIX_FMT_BGRA;
+    default:
+        return AV_PIX_FMT_NONE;
     }
 }
 

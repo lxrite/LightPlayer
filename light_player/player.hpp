@@ -13,6 +13,7 @@
 
 #include "config.hpp"
 #include "executor.hpp"
+#include "options.hpp"
 #include "player_event_listener.hpp"
 #include "player_state.hpp"
 #include "renderer.hpp"
@@ -35,6 +36,8 @@ public:
 
     auto SetRenderer(Renderer* renderer) -> void;
     auto SetEventListener(PlayerEventListener* event_listener) -> void;
+
+    auto SetRenderOptions(const RenderOptions& options) -> bool;
 
     static void Initialize();
 

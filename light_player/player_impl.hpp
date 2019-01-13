@@ -21,6 +21,7 @@ extern "C" {
 #include "executor.hpp"
 #include "decoder.hpp"
 #include "demuxer.hpp"
+#include "options.hpp"
 #include "player_state.hpp"
 #include "player_event_listener.hpp"
 #include "queue.hpp"
@@ -45,6 +46,8 @@ public:
     auto SetRenderer(Renderer* renderer) -> void;
     auto SetEventListener(PlayerEventListener* event_listener) -> void;
 
+    auto SetRenderOptions(const RenderOptions& options) -> bool;
+
 private:
     auto DoOpen(const std::string& url) -> void;
     auto ReadThread() -> void;
@@ -59,6 +62,8 @@ private:
     auto ComputeVideoFrameTargetDelay(double delay) const -> double;
     auto IsCloseRequested(bool lock) const -> bool;
     auto OnThreadExit() -> void;
+
+    auto GetAVPixelFormat(PixelFormat pf) -> AVPixelFormat;
 
 private:
     PlayerState player_state_ = PlayerState::Ready;
@@ -84,8 +89,6 @@ private:
     AVFormatContext* format_ctx_ = nullptr;
     Renderer* renderer_ = nullptr;
     std::thread render_thread_;
-    std::uint32_t video_width_;
-    std::uint32_t video_height_;
     AVPixelFormat video_pix_fmt_;
     std::optional<Frame> last_show_frame_;
     double max_frame_duration_ = 10.0;
@@ -100,6 +103,7 @@ private:
     bool is_end_of_audio_stream_ = false;
     std::int64_t position_ = 0;
     bool use_audio_position_ = false;
+    RenderOptions render_options_;
 };
 
 } // namespace lp

@@ -74,6 +74,11 @@ auto Player::SetEventListener(PlayerEventListener* event_listener) -> void
     (*reinterpret_cast<std::shared_ptr<PlayerImpl>*>(impl_))->SetEventListener(event_listener);
 }
 
+auto Player::SetRenderOptions(const RenderOptions& options) -> bool
+{
+    return (*reinterpret_cast<std::shared_ptr<PlayerImpl>*>(impl_))->SetRenderOptions(options);
+}
+
 void Player::Initialize()
 {
     av_register_all();
