@@ -1,7 +1,7 @@
 ﻿/*
  *    executor.hpp:
  *
- *    Copyright (C) 2017 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -16,8 +16,7 @@ class Executor {
 public:
     virtual ~Executor() {};
 
-    virtual auto Post(Work&& work) -> void = 0;
-    virtual auto Post(const Work& work) -> void = 0;
+    virtual auto Dispatch(const Work& work) -> void = 0;
 };
 
 }// namespace lp

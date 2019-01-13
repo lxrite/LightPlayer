@@ -204,7 +204,7 @@ auto PlayerImpl::DoOpen(const std::string& url) -> void
         return;
     }
     auto self = shared_from_this();
-    ui_executor_->Post([this, self]() {
+    ui_executor_->Dispatch([this, self]() {
         if (player_state_ != PlayerState::Ready) {
             return;
         }
@@ -245,7 +245,7 @@ auto PlayerImpl::DoOpen(const std::string& url) -> void
             if (audio_codec != nullptr) {
                 std::promise<std::shared_ptr<Decoder>> p;
                 auto f = p.get_future();
-                ui_executor_->Post([&p, audio_codecpar, audio_codec]() {
+                ui_executor_->Dispatch([&p, audio_codecpar, audio_codec]() {
                     auto audio_decoder = Decoder::OpenDecoder(audio_codecpar, audio_codec, nullptr);
                     p.set_value(audio_decoder);
                 });
@@ -260,7 +260,7 @@ auto PlayerImpl::DoOpen(const std::string& url) -> void
             if (video_codec != nullptr) {
                 std::promise<std::shared_ptr<Decoder>> p;
                 auto f = p.get_future();
-                ui_executor_->Post([&p, video_codecpar, video_codec]() {
+                ui_executor_->Dispatch([&p, video_codecpar, video_codec]() {
                     auto video_decoder = Decoder::OpenDecoder(video_codecpar, video_codec, nullptr);
                     p.set_value(video_decoder);
                 });
@@ -276,7 +276,7 @@ auto PlayerImpl::DoOpen(const std::string& url) -> void
         demuxer_ = std::make_shared<Demuxer>(format_ctx_);
         max_frame_duration_ = (format_ctx_->iformat->flags & AVFMT_TS_DISCONT) ? 10.0 : 3600.0;
 
-        ui_executor_->Post([this, self]() {
+        ui_executor_->Dispatch([this, self]() {
             if (player_state_ != PlayerState::Opening) {
                 return;
             }
@@ -499,7 +499,8 @@ auto PlayerImpl::DecodeAudioThread() -> void
             is_end_of_audio_stream_ = true;
             if (video_stream_index_ < 0 || is_end_of_video_stream_) {
                 auto self = shared_from_this();
-                ui_executor_->Post([this, self]() {
+                lck.unlock();
+                ui_executor_->Dispatch([this, self]() {
                     // TODO(Light Lin):
                     player_state_ = PlayerState::Ended;
                     if (event_listener_) {
@@ -575,7 +576,8 @@ auto PlayerImpl::DecodeVideoThread() -> void
             is_end_of_video_stream_ = true;
             if (audio_stream_index_ < 0 || is_end_of_audio_stream_) {
                 auto self = shared_from_this();
-                ui_executor_->Post([this, self]() {
+                lck.unlock();
+                ui_executor_->Dispatch([this, self]() {
                     // TODO(Light Lin):
                     player_state_ = PlayerState::Ended;
                     if (event_listener_) {
@@ -942,7 +944,7 @@ auto PlayerImpl::OnThreadExit() -> void
     auto self = shared_from_this();
     auto running_thread_cnt = --running_thread_cnt_;
     if (running_thread_cnt == 0) {
-        ui_executor_->Post([this, self]() {
+        ui_executor_->Dispatch([this, self]() {
             if (player_state_ == PlayerState::Closing) {
                 Reset();
                 player_state_ = PlayerState::Ready;
