@@ -6,6 +6,7 @@
  */
 
 #include "player_impl.hpp"
+#include "picture.hpp"
 
 #include <windows.h>
 
@@ -713,23 +714,9 @@ auto PlayerImpl::RenderThread() -> void
             }
         }
         if (display && renderer) {
-            auto vframe_width = frame->RawFramePtr()->width;
-            auto vframe_height = frame->RawFramePtr()->height;
-            auto output_buffer_size_need = av_image_get_buffer_size(target_pix_fmt, vframe_width, vframe_height, align);
-            if (output_buffer == nullptr || output_buffer_size < output_buffer_size_need) {
-                output_buffer.reset(new std::uint8_t[output_buffer_size_need]);
-                output_buffer_size = output_buffer_size_need;
-            }
-            auto pFrameYUV = av_frame_alloc();
-            av_image_fill_arrays(pFrameYUV->data, pFrameYUV->linesize, output_buffer.get(), target_pix_fmt, vframe_width, vframe_height, align);
-
-            img_convert_ctx = sws_getCachedContext(img_convert_ctx, vframe_width, vframe_height, static_cast<AVPixelFormat>(frame->RawFramePtr()->format), vframe_width, vframe_height, target_pix_fmt, SWS_BICUBIC, NULL, NULL, NULL);
-            sws_scale(img_convert_ctx, frame->RawFramePtr()->data, frame->RawFramePtr()->linesize, 0, vframe_height, pFrameYUV->data, pFrameYUV->linesize);
-
-            renderer->Render(pixel_format, output_buffer.get(), vframe_width, vframe_height);
+            lp::Picture picture(frame->RawFramePtr(), true);
+            renderer->Render(picture);
             renderer->Release();
-            // TODO(Light Lin):
-            av_frame_free(&pFrameYUV);
         }
         {
             std::unique_lock<std::mutex> lck(mutex_);
@@ -747,17 +734,20 @@ auto PlayerImpl::RenderThread() -> void
 auto PlayerImpl::AudioThread() -> void
 {
     auto audio_codec_ctx_ = audio_decoder_->GetCodecContext();
-    int64_t out_channel_layout = av_get_default_channel_layout(audio_codec_ctx_->channels);
+    AVChannelLayout out_channel_layout;
+    av_channel_layout_default(&out_channel_layout, audio_codec_ctx_->ch_layout.nb_channels);
     AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16;
     int out_samples_rate = audio_codec_ctx_->sample_rate;
-    int64_t in_channel_layout = audio_codec_ctx_->channel_layout ? audio_codec_ctx_->channel_layout : av_get_default_channel_layout(audio_codec_ctx_->channels);
+    AVChannelLayout in_channel_layout;
+    av_channel_layout_copy(&in_channel_layout, &out_channel_layout);
     AVSampleFormat in_sample_fmt = audio_codec_ctx_->sample_fmt;
     int in_sample_rate = audio_codec_ctx_->sample_rate;
 
     do
     {
-        SwrContext* au_convert_ctx = swr_alloc_set_opts(nullptr, out_channel_layout, AV_SAMPLE_FMT_S16, out_samples_rate, in_channel_layout, in_sample_fmt, in_sample_rate, 0, nullptr);
-        if (au_convert_ctx == nullptr) {
+        SwrContext* au_convert_ctx = nullptr;
+        auto alloc_ctx_result = swr_alloc_set_opts2(&au_convert_ctx, &out_channel_layout, AV_SAMPLE_FMT_S16, out_samples_rate, &in_channel_layout, in_sample_fmt, in_sample_rate, 0, nullptr);
+        if (alloc_ctx_result != 0) {
             break;
         }
 
@@ -767,7 +757,7 @@ auto PlayerImpl::AudioThread() -> void
         }
 
         int tgt_samples_per_sec = out_samples_rate;
-        int tgt_channels = audio_codec_ctx_->channels;
+        int tgt_channels = audio_codec_ctx_->ch_layout.nb_channels;
         int tgt_samples_rate = out_samples_rate;
 
         HWAVEOUT hwo = nullptr;
@@ -854,10 +844,10 @@ auto PlayerImpl::AudioThread() -> void
             }
             uint8_t *out_audio_data_buf = nullptr;
             // TODO(Light Lin):
-            unsigned int out_audio_data_buf_size = av_samples_alloc(&out_audio_data_buf, nullptr, frame->RawFramePtr()->channels, frame->RawFramePtr()->nb_samples, AV_SAMPLE_FMT_S16, 0);
+            unsigned int out_audio_data_buf_size = av_samples_alloc(&out_audio_data_buf, nullptr, frame->RawFramePtr()->ch_layout.nb_channels, frame->RawFramePtr()->nb_samples, AV_SAMPLE_FMT_S16, 0);
             int out_samples_per_channel = swr_convert(au_convert_ctx, &out_audio_data_buf, out_audio_data_buf_size, (const std::uint8_t**)(frame->RawFramePtr()->extended_data), frame->RawFramePtr()->nb_samples);
-            int out_len = (unsigned int)(out_samples_per_channel * frame->RawFramePtr()->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
-            int out_samples = out_samples_per_channel * frame->RawFramePtr()->channels;
+            int out_len = (unsigned int)(out_samples_per_channel * frame->RawFramePtr()->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+            int out_samples = out_samples_per_channel * frame->RawFramePtr()->ch_layout.nb_channels;
             if (vec_buf[idx].size() < static_cast<std::size_t>(out_len)) {
                 vec_buf[idx].resize(out_len);
             }

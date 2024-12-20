@@ -8,8 +8,7 @@
 #ifndef LIGHT_PLAYER_RENDERER_HPP
 #define LIGHT_PLAYER_RENDERER_HPP
 
-#include <memory>
-
+#include "picture.hpp"
 #include "ref_counted.hpp"
 #include "types.hpp"
 
@@ -20,7 +19,7 @@ class Renderer
     : public RefCounted {
 public:
     virtual ~Renderer() noexcept {}
-    virtual auto Render(PixelFormat pixel_format, const byte_t* data, std::uint32_t width, std::uint32_t height) noexcept -> void = 0;
+    virtual auto Render(const Picture& picture) noexcept -> void = 0;
 };
 
 } // namespace lp

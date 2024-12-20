@@ -36,6 +36,10 @@ auto Demuxer::GetPacket(Packet& packet)-> DemuxErrors
     case AVERROR_EOF:
         err = DemuxErrors::EndOfFile;
         break;
+    case AVERROR_INVALIDDATA:
+        // TODO:
+        err = DemuxErrors::EndOfFile;
+        break;
     default:
         break;
     }
