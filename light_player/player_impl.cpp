@@ -443,6 +443,7 @@ auto PlayerImpl::ReadThread() -> void
 
 auto PlayerImpl::DecodeAudioThread() -> void
 {
+    auto time_base = format_ctx_->streams[audio_stream_index_]->time_base;
     while (true) {
         if (IsCloseRequested(true)) {
             return;
@@ -450,7 +451,6 @@ auto PlayerImpl::DecodeAudioThread() -> void
         auto frame = Frame{};
         auto receive_frame_err = audio_decoder_->ReceiveFrame(frame);
         if (receive_frame_err == DecodeErrors::Ok) {
-            AVRational time_base = AVRational{ 1, frame.RawFramePtr()->sample_rate };
             // TODO(Light Lin):
             auto duration = av_q2d(AVRational{ frame.RawFramePtr()->nb_samples, frame.RawFramePtr()->sample_rate });
             auto pts = (frame.RawFramePtr()->pts == AV_NOPTS_VALUE) ? NAN : frame.RawFramePtr()->pts * av_q2d(time_base);
@@ -903,7 +903,7 @@ auto PlayerImpl::VideoFrameDuration(const Frame& frame, const Frame& next_frame)
 auto PlayerImpl::ComputeVideoFrameTargetDelay(double delay) const -> double
 {
     auto diff = video_clock_->GetClock() - audio_clock_->GetClock();
-    if (std::isnan(diff)) {
+    if (!std::isnan(diff)) {
         auto sync_threshold = std::clamp(delay, kLightPlayerAVSyncThresholdMin, kLightPlayerAVSyncThresholdMax);
         if (fabs(diff) < max_frame_duration_) {
             if (diff <= -sync_threshold) {
