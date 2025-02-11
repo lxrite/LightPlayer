@@ -1,11 +1,15 @@
 ﻿/*
  *    decoder.cpp:
  *
- *    Copyright (C) 2017-2018 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
 #include "decoder.hpp"
+
+extern "C" {
+#include "libavcodec/avcodec.h"
+}
 
 namespace lp {
 
@@ -96,6 +100,20 @@ auto Decoder::OpenDecoder(const AVCodecParameters* codecpar, const AVCodec* code
     if (codec_ctx == nullptr) {
         return { nullptr };
     }
+
+    if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
+        codec_ctx->thread_count = 0;
+        if (codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
+            codec_ctx->thread_type = FF_THREAD_FRAME;
+        }
+        else if (codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
+            codec_ctx->thread_type = FF_THREAD_SLICE;
+        }
+        else {
+            codec_ctx->thread_count = 1;
+        }
+    }
+
     if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0) {
         avcodec_free_context(&codec_ctx);
         return { nullptr };
