@@ -121,6 +121,7 @@ auto AudioService_WinMM::AudioThread(std::stop_token stoken) -> void
         }
         ::WaitForSingleObject(event_handle_, INFINITE);
     }
+    ::waveOutReset(wave_out_handle_);
 }
 
 #endif // LIGHT_PLAYER_PLATFORM == LIGHT_PLAYER_PLATFORM_WIN_DESKTOP
