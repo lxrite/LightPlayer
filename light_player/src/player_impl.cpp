@@ -185,32 +185,32 @@ auto PlayerImpl::Open(const std::string& url, const std::shared_ptr<io::CustomIO
 
     auto url_copy = url;
     auto custom_io_copy = custom_io;
-    // TODO(Light Lin):
-    auto self = shared_from_this();
-    ++running_thread_cnt_;
-    std::thread([this, self, url_copy, custom_io_copy]() {
-        DoOpen(url_copy, custom_io_copy);
-        OnThreadExit();
-        }).detach();
+    OpenAsync(url_copy, custom_io);
     return PlayerOperationResult::Pending;
 }
 
-auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::CustomIOWrapper>& custom_io) -> void
+auto PlayerImpl::OpenAsync(const std::string url, const std::shared_ptr<io::CustomIOWrapper> custom_io) -> FireAndForget
+{
+    ++running_task_cnt_;
+    co_await DoOpen(url, custom_io);
+    OnTaskFinished();
+}
+
+auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::CustomIOWrapper>& custom_io) -> Task<void>
 {
     if (IsCloseRequested(true)) {
-        return;
+        co_return;
     }
-    auto self = shared_from_this();
-    ui_executor_->Dispatch([this, self]() {
-        if (player_state_ != PlayerState::Ready) {
-            return;
-        }
-        player_state_ = PlayerState::Opening;
-        if (event_listener_) {
-            PlayerStateOpeningEventArg event_arg;
-            event_listener_->OnPlayerStateOpening(event_arg);
-        }
-    });
+    co_await SwitchToUIThread();
+    if (player_state_ != PlayerState::Ready) {
+        co_return;
+    }
+    player_state_ = PlayerState::Opening;
+    if (event_listener_) {
+        PlayerStateOpeningEventArg event_arg;
+        event_listener_->OnPlayerStateOpening(event_arg);
+    }
+    co_await ThreadPool::Shared().Schedule();
 
     bool open_success = false;
     do
@@ -223,17 +223,20 @@ auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::Custom
             format_ctx_->pb = custom_io->IOContext();
             custom_io_ = custom_io;
         }
-        if (avformat_open_input(&format_ctx_, url.c_str(), nullptr, nullptr) != 0) {
+        auto ret =  avformat_open_input(&format_ctx_, url.c_str(), nullptr, nullptr);
+        if (ret != 0) {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+            av_strerror(ret, errbuf, sizeof(errbuf));
             break;
         }
         if (IsCloseRequested(true)) {
-            return;
+            co_return;
         }
         if (avformat_find_stream_info(format_ctx_, nullptr) != 0) {
             break;
         }
         if (IsCloseRequested(true)) {
-            return;
+            co_return;
         }
 
         audio_stream_index_ = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
@@ -244,13 +247,7 @@ auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::Custom
             auto audio_codecpar = format_ctx_->streams[audio_stream_index_]->codecpar;
             auto audio_codec = avcodec_find_decoder(audio_codecpar->codec_id);
             if (audio_codec != nullptr) {
-                std::promise<std::shared_ptr<Decoder>> p;
-                auto f = p.get_future();
-                ui_executor_->Dispatch([&p, audio_codecpar, audio_codec]() {
-                    auto audio_decoder = Decoder::OpenDecoder(audio_codecpar, audio_codec, nullptr);
-                    p.set_value(audio_decoder);
-                });
-                audio_decoder_ = f.get();
+                audio_decoder_ = Decoder::OpenDecoder(audio_codecpar, audio_codec, nullptr);
             }
         }
 
@@ -259,13 +256,7 @@ auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::Custom
             video_pix_fmt_ = static_cast<AVPixelFormat>(video_codecpar->format);
             auto video_codec = avcodec_find_decoder(video_codecpar->codec_id);
             if (video_codec != nullptr) {
-                std::promise<std::shared_ptr<Decoder>> p;
-                auto f = p.get_future();
-                ui_executor_->Dispatch([&p, video_codecpar, video_codec]() {
-                    auto video_decoder = Decoder::OpenDecoder(video_codecpar, video_codec, nullptr);
-                    p.set_value(video_decoder);
-                });
-                video_decoder_ = f.get();
+                video_decoder_ = Decoder::OpenDecoder(video_codecpar, video_codec, nullptr);
             }
             use_audio_position_ = false;
         }
@@ -277,33 +268,32 @@ auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::Custom
         demuxer_ = std::make_shared<Demuxer>(format_ctx_);
         max_frame_duration_ = (format_ctx_->iformat->flags & AVFMT_TS_DISCONT) ? 10.0 : 3600.0;
 
-        ui_executor_->Dispatch([this, self]() {
-            if (player_state_ != PlayerState::Opening) {
-                return;
-            }
-            player_state_ = PlayerState::Opended;
+        co_await SwitchToUIThread();
+        if (player_state_ != PlayerState::Opening) {
+            co_return;
+        }
+        player_state_ = PlayerState::Opended;
+        if (event_listener_) {
+            PlayerStateOpenedEventArg event_arg;
+            event_listener_->OnPlayerStateOpened(event_arg);
+        }
+        if (player_state_ != PlayerState::Opended) {
+            co_return;
+        }
+        if (paused_) {
+            player_state_ = PlayerState::Paused;
             if (event_listener_) {
-                PlayerStateOpenedEventArg event_arg;
-                event_listener_->OnPlayerStateOpened(event_arg);
+                PlayerStatePausedEventArg event_arg;
+                event_listener_->OnPlayerStatePaused(event_arg);
             }
-            if (player_state_ != PlayerState::Opended) {
-                return;
+        }
+        else {
+            player_state_ = PlayerState::Playing;
+            if (event_listener_) {
+                PlayerStatePlayingEventArg event_arg;
+                event_listener_->OnPlayerStatePlaying(event_arg);
             }
-            if (paused_) {
-                player_state_ = PlayerState::Paused;
-                if (event_listener_) {
-                    PlayerStatePausedEventArg event_arg;
-                    event_listener_->OnPlayerStatePaused(event_arg);
-                }
-            }
-            else {
-                player_state_ = PlayerState::Playing;
-                if (event_listener_) {
-                    PlayerStatePlayingEventArg event_arg;
-                    event_listener_->OnPlayerStatePlaying(event_arg);
-                }
-            }
-        });
+        }
 
         RunReadTask();
 
@@ -324,9 +314,9 @@ auto PlayerImpl::DoOpen(const std::string& url, const std::shared_ptr<io::Custom
 auto PlayerImpl::RunReadTask() -> FireAndForget
 {
     auto self = shared_from_this();
-    ++running_thread_cnt_;
+    ++running_task_cnt_;
     co_await ReadTask();
-    OnThreadExit();
+    OnTaskFinished();
 }
 
 auto PlayerImpl::ReadTask() -> Task<void>
@@ -432,9 +422,9 @@ auto PlayerImpl::ReadTask() -> Task<void>
 auto PlayerImpl::RunDecodeAudioTask() -> FireAndForget
 {
     auto self = shared_from_this();
-    ++running_thread_cnt_;
+    ++running_task_cnt_;
     co_await DecodeAudioTask();
-    OnThreadExit();
+    OnTaskFinished();
 }
 
 auto PlayerImpl::DecodeAudioTask() -> Task<void>
@@ -520,9 +510,9 @@ auto PlayerImpl::DecodeAudioTask() -> Task<void>
 auto PlayerImpl::RunDecodeVideoTask() -> FireAndForget
 {
     auto self = shared_from_this();
-    ++running_thread_cnt_;
+    ++running_task_cnt_;
     co_await DecodeVideoTask();
-    OnThreadExit();
+    OnTaskFinished();
 }
 
 auto PlayerImpl::DecodeVideoTask() -> Task<void>
@@ -606,9 +596,9 @@ auto PlayerImpl::DecodeVideoTask() -> Task<void>
 auto PlayerImpl::RunRenderTask() -> FireAndForget
 {
     auto self = shared_from_this();
-    ++running_thread_cnt_;
+    ++running_task_cnt_;
     co_await RenderTask();
-    OnThreadExit();
+    OnTaskFinished();
 }
 
 auto PlayerImpl::RenderTask() -> Task<void>
@@ -716,9 +706,9 @@ auto PlayerImpl::RenderTask() -> Task<void>
 auto PlayerImpl::RunAudioTask() -> FireAndForget
 {
     auto self = shared_from_this();
-    ++running_thread_cnt_;
+    ++running_task_cnt_;
     co_await AudioTask();
-    OnThreadExit();
+    OnTaskFinished();
 }
 
 auto PlayerImpl::AudioTask() -> Task<void>
@@ -860,21 +850,19 @@ auto PlayerImpl::IsCloseRequested(bool lock) const -> bool
     return is_close_requested_;
 }
 
-auto PlayerImpl::OnThreadExit() -> void
-{
+auto PlayerImpl::OnTaskFinished() -> FireAndForget {
     auto self = shared_from_this();
-    auto running_thread_cnt = --running_thread_cnt_;
-    if (running_thread_cnt == 0) {
-        ui_executor_->Dispatch([this, self]() {
-            if (player_state_ == PlayerState::Closing) {
-                Reset();
-                player_state_ = PlayerState::Ready;
-                if (event_listener_) {
-                    PlayerStateClosedEventArg event_arg;
-                    event_listener_->OnPlayerStateClosed(event_arg);
-                }
+    co_await SwitchToUIThread();
+    auto running_task_cnt = --running_task_cnt_;
+    if (running_task_cnt == 0) {
+        if (player_state_ == PlayerState::Closing) {
+            Reset();
+            player_state_ = PlayerState::Ready;
+            if (event_listener_) {
+                PlayerStateClosedEventArg event_arg;
+                event_listener_->OnPlayerStateClosed(event_arg);
             }
-        });
+        }
     }
 }
 

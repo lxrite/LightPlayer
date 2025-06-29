@@ -8,7 +8,6 @@
 #ifndef LIGHT_PLAYER_PLAYER_IMPL_HPP
 #define LIGHT_PLAYER_PLAYER_IMPL_HPP
 
-#include <atomic>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -58,7 +57,8 @@ namespace lp {
 
     private:
         auto Open(const std::string& url, const std::shared_ptr<io::CustomIOWrapper>& custom_io) ->lp::PlayerOperationResult;
-        auto DoOpen(const std::string& url, const std::shared_ptr<io::CustomIOWrapper>& custom_io) -> void;
+        auto OpenAsync(const std::string url, const std::shared_ptr<io::CustomIOWrapper> custom_io) -> FireAndForget;
+        auto DoOpen(const std::string& url, const std::shared_ptr<io::CustomIOWrapper>& custom_io) -> Task<void>;
         auto RunReadTask() -> FireAndForget;
         auto ReadTask() -> Task<void>;
         auto RunDecodeAudioTask() -> FireAndForget;
@@ -75,8 +75,25 @@ namespace lp {
         auto VideoFrameDuration(const Frame& frame, const Frame& next_frame) const -> double;
         auto ComputeVideoFrameTargetDelay(double delay) const -> double;
         auto IsCloseRequested(bool lock) const -> bool;
-        auto OnThreadExit() -> void;
+        auto OnTaskFinished() -> FireAndForget;
         auto OnAudioServiceDrained() -> void;
+        auto SwitchToUIThread() {
+            struct Awaitable {
+                SharedPtr <Executor> ui_executor;
+                auto await_ready() const noexcept -> bool {
+                    return false;
+                }
+
+                void await_suspend(std::coroutine_handle<> handle) const noexcept {
+                    ui_executor->Dispatch([handle]() {
+                        handle.resume();
+                    });
+                }
+
+                void await_resume() const noexcept {}
+            };
+            return Awaitable(ui_executor_);
+        }
 
     private:
         PlayerState player_state_ = PlayerState::Ready;
@@ -110,7 +127,7 @@ namespace lp {
         bool is_seek_requested_ = false;
         std::int64_t seek_target_us_ = 0;
         bool is_close_requested_ = false;
-        std::atomic<int> running_thread_cnt_ = 0;
+        int running_task_cnt_ = 0;
         bool is_end_of_file_ = false;
         bool is_end_of_video_stream_ = false;
         bool is_end_of_audio_stream_ = false;
