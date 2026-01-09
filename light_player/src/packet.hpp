@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    packet.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -17,60 +17,60 @@ extern "C" {
 
 namespace lp {
 
-    enum class PacketType {
-        Normal,
-        Flush,
-    };
+enum class PacketType {
+  Normal,
+  Flush,
+};
 
-    namespace impl {
+namespace impl {
 
-        class RawPacketHost {
-        public:
-            using RawPacketType = AVPacket;
+class RawPacketHost {
+ public:
+  using RawPacketType = AVPacket;
 
-            explicit RawPacketHost(RawPacketType* raw_packet) noexcept;
-            RawPacketHost(const RawPacketHost& other) = delete;
-            RawPacketHost(RawPacketHost&& other) = delete;
-            auto operator=(const RawPacketHost& other) = delete;
-            auto operator=(RawPacketHost&& other) = delete;
+  explicit RawPacketHost(RawPacketType *raw_packet) noexcept;
+  RawPacketHost(const RawPacketHost &other) = delete;
+  RawPacketHost(RawPacketHost &&other) = delete;
+  auto operator=(const RawPacketHost &other) = delete;
+  auto operator=(RawPacketHost &&other) = delete;
 
-            ~RawPacketHost();
+  ~RawPacketHost();
 
-            auto RawPacketPtr() const->RawPacketType*;
+  auto RawPacketPtr() const -> RawPacketType *;
 
-        private:
-            RawPacketType* raw_packet_;
-        };
+ private:
+  RawPacketType *raw_packet_;
+};
 
-    } // namespace impl
+}  // namespace impl
 
-    class Packet {
-    public:
-        using RawPacketType = AVPacket;
-        Packet() noexcept = default;
-        Packet(const Packet& other) noexcept = default;
-        Packet(Packet&& other) noexcept = default;
-        auto operator=(const Packet& other) -> Packet& = default;
-        auto operator=(Packet&& other) noexcept -> Packet& = default;
+class Packet {
+ public:
+  using RawPacketType = AVPacket;
+  Packet() noexcept = default;
+  Packet(const Packet &other) noexcept = default;
+  Packet(Packet &&other) noexcept = default;
+  auto operator=(const Packet &other) -> Packet & = default;
+  auto operator=(Packet &&other) noexcept -> Packet & = default;
 
-        ~Packet();
+  ~Packet();
 
-        auto RawPacketPtr() const -> const RawPacketType*;
-        auto SetSerial(int serial) noexcept -> void;
-        auto Serial() const noexcept -> std::optional<int>;
+  auto RawPacketPtr() const -> const RawPacketType *;
+  auto SetSerial(int serial) noexcept -> void;
+  auto Serial() const noexcept -> std::optional<int>;
 
-        auto IsFlushPacket() const -> bool;
+  auto IsFlushPacket() const -> bool;
 
-        static auto AttachRawPacket(RawPacketType* raw_pkt) -> Packet;
-        static auto MakeFlushPacket() -> Packet;
-        static auto MakeNullPacket() -> Packet;
+  static auto AttachRawPacket(RawPacketType *raw_pkt) -> Packet;
+  static auto MakeFlushPacket() -> Packet;
+  static auto MakeNullPacket() -> Packet;
 
-    private:
-        std::shared_ptr<impl::RawPacketHost> raw_packet_host_;
-        std::optional<int> serial_;
-        std::optional<PacketType> packet_type_;
-    };
+ private:
+  std::shared_ptr<impl::RawPacketHost> raw_packet_host_;
+  std::optional<int> serial_;
+  std::optional<PacketType> packet_type_;
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_PACKET_HPP
+#endif  // LIGHT_PLAYER_PACKET_HPP

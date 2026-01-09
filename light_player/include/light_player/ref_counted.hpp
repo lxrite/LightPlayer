@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    ref_counted.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -12,13 +12,13 @@
 
 namespace lp {
 
-    class RefCounted {
-    public:
-        virtual ~RefCounted() noexcept {};
-        virtual auto AddRef() -> std::int64_t = 0;
-        virtual auto Release() -> void = 0;
-    };
+class RefCounted {
+ public:
+  virtual ~RefCounted() noexcept {};
+  virtual auto AddRef() -> std::int64_t = 0;
+  virtual auto Release() -> void = 0;
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_REF_COUNTED_HPP
+#endif  // LIGHT_PLAYER_REF_COUNTED_HPP

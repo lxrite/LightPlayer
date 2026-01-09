@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    executor.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -14,14 +14,13 @@
 
 namespace lp {
 
-    class LIGHT_PLAYER_API Executor
-        : public RefCounted {
-    public:
-        virtual ~Executor() {};
+class LIGHT_PLAYER_API Executor : public RefCounted {
+ public:
+  virtual ~Executor(){};
 
-        virtual auto Dispatch(const Work& work) -> void = 0;
-    };
+  virtual auto Dispatch(const Work &work) -> void = 0;
+};
 
-}// namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_EXECUTOR_HPP
+#endif  // LIGHT_PLAYER_EXECUTOR_HPP

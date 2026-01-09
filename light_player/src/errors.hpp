@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    errors.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -10,22 +10,22 @@
 
 namespace lp {
 
-    enum class DemuxErrors {
-        Ok,
-        Other,
-        Again,
-        OutOfMemory,
-        EndOfFile,
-    };
+enum class DemuxErrors {
+  Ok,
+  Other,
+  Again,
+  OutOfMemory,
+  EndOfFile,
+};
 
-    enum class DecodeErrors {
-        Ok,
-        Other,
-        Again,
-        OutOfMemory,
-        EndOfFile,
-    };
+enum class DecodeErrors {
+  Ok,
+  Other,
+  Again,
+  OutOfMemory,
+  EndOfFile,
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_ERRORS_HPP
+#endif  // LIGHT_PLAYER_ERRORS_HPP

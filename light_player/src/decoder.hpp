@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    decoder.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -21,26 +21,29 @@ extern "C" {
 
 namespace lp {
 
-    class Decoder {
-        explicit Decoder(AVCodecContext* codec_ctx);
-    public:
-        ~Decoder();
+class Decoder {
+  explicit Decoder(AVCodecContext *codec_ctx);
 
-        auto SendPacket(const Packet& packet) -> DecodeErrors;
-        auto ReceiveFrame(Frame& frame) -> DecodeErrors;
-        auto SetPacketSerial(int packet_serial) -> void;
-        auto PacketSerial() const -> std::optional<int>;
-        auto GetPacketTimeBase() const -> AVRational;
-        auto GetCodecContext() const -> AVCodecContext*;
-        auto FlushBuffers() -> void;
+ public:
+  ~Decoder();
 
-        static auto OpenDecoder(const AVCodecParameters* codecpar, const AVCodec* codec, AVDictionary** options) -> std::shared_ptr<Decoder>;
+  auto SendPacket(const Packet &packet) -> DecodeErrors;
+  auto ReceiveFrame(Frame &frame) -> DecodeErrors;
+  auto SetPacketSerial(int packet_serial) -> void;
+  auto PacketSerial() const -> std::optional<int>;
+  auto GetPacketTimeBase() const -> AVRational;
+  auto GetCodecContext() const -> AVCodecContext *;
+  auto FlushBuffers() -> void;
 
-    private:
-        AVCodecContext* codec_ctx_;
-        std::optional<int> packet_serial_;
-    };
+  static auto OpenDecoder(const AVCodecParameters *codecpar,
+                          const AVCodec *codec, AVDictionary **options)
+      -> std::shared_ptr<Decoder>;
 
-} // namespace lp
+ private:
+  AVCodecContext *codec_ctx_;
+  std::optional<int> packet_serial_;
+};
 
-#endif // LIGHT_PLAYER_DECODER_HPP
+}  // namespace lp
+
+#endif  // LIGHT_PLAYER_DECODER_HPP

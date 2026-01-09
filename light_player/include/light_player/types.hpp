@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    types.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -12,19 +12,19 @@
 
 namespace lp {
 
-    struct Size {
-        std::uint32_t width;
-        std::uint32_t height;
-    };
+struct Size {
+  std::uint32_t width;
+  std::uint32_t height;
+};
 
-    using byte_t = unsigned char;
+using byte_t = unsigned char;
 
-    enum class PlayerOperationResult {
-        Done,
-        Pending,
-        Fail,
-    };
+enum class PlayerOperationResult {
+  Done,
+  Pending,
+  Fail,
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_TYPES_HPP
+#endif  // LIGHT_PLAYER_TYPES_HPP

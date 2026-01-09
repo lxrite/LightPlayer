@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    queue.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -12,7 +12,7 @@
 #include <memory>
 
 extern "C" {
-#include <libavcodec/avcodec.h>	
+#include <libavcodec/avcodec.h>
 }
 
 #include "src/frame.hpp"
@@ -20,43 +20,43 @@ extern "C" {
 
 namespace lp {
 
-    class PacketQueue {
-    public:
-        PacketQueue();
-        ~PacketQueue();
+class PacketQueue {
+ public:
+  PacketQueue();
+  ~PacketQueue();
 
-        auto Serial() const -> int;
-        auto SerialPtr() const -> const std::shared_ptr<int>&;
-        auto Push(const Packet& packet) -> void;
-        auto Push(Packet&& packet) -> void;
-        auto Pop() -> Packet;
-        auto Empty() -> bool;
-        auto Size() -> std::size_t;
-        auto Flush() -> void;
+  auto Serial() const -> int;
+  auto SerialPtr() const -> const std::shared_ptr<int> &;
+  auto Push(const Packet &packet) -> void;
+  auto Push(Packet &&packet) -> void;
+  auto Pop() -> Packet;
+  auto Empty() -> bool;
+  auto Size() -> std::size_t;
+  auto Flush() -> void;
 
-    private:
-        std::list<Packet> packet_list;
-        std::shared_ptr<int> serial;
-    };
+ private:
+  std::list<Packet> packet_list;
+  std::shared_ptr<int> serial;
+};
 
-    class FrameQueue {
-    public:
-        FrameQueue();
-        ~FrameQueue();
+class FrameQueue {
+ public:
+  FrameQueue();
+  ~FrameQueue();
 
-        auto Push(const Frame& frame) -> void;
-        auto Push(Frame&& frame) -> void;
-        auto Pop() -> std::optional<Frame>;
-        auto Empty() -> bool;
-        auto Size() -> std::size_t;
-        auto Peek() -> std::optional<Frame>;
-        auto PeekNext() -> std::optional<Frame>;
-        auto Clear() -> void;
+  auto Push(const Frame &frame) -> void;
+  auto Push(Frame &&frame) -> void;
+  auto Pop() -> std::optional<Frame>;
+  auto Empty() -> bool;
+  auto Size() -> std::size_t;
+  auto Peek() -> std::optional<Frame>;
+  auto PeekNext() -> std::optional<Frame>;
+  auto Clear() -> void;
 
-    private:
-        std::list<Frame> frame_list;
-    };
+ private:
+  std::list<Frame> frame_list;
+};
 
-}; // namespace lp
+};  // namespace lp
 
-#endif // LIGHT_PLAYER_QUEUE_HPP
+#endif  // LIGHT_PLAYER_QUEUE_HPP

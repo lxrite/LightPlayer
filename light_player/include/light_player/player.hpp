@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    player.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -20,28 +20,28 @@
 
 namespace lp {
 
-    class LIGHT_PLAYER_API Player {
-    public:
-        explicit Player(Executor* ui_executor);
-        ~Player();
-        auto Open(const std::string& url) -> PlayerOperationResult;
-        auto OpenStream(io::IStream* stream) -> PlayerOperationResult;
-        auto Play() -> PlayerOperationResult;
-        auto Pause() -> PlayerOperationResult;
-        auto Seek(std::uint64_t time_us) -> PlayerOperationResult;
-        auto Close() -> PlayerOperationResult;
+class LIGHT_PLAYER_API Player {
+ public:
+  explicit Player(Executor *ui_executor);
+  ~Player();
+  auto Open(const std::string &url) -> PlayerOperationResult;
+  auto OpenStream(io::IStream *stream) -> PlayerOperationResult;
+  auto Play() -> PlayerOperationResult;
+  auto Pause() -> PlayerOperationResult;
+  auto Seek(std::uint64_t time_us) -> PlayerOperationResult;
+  auto Close() -> PlayerOperationResult;
 
-        auto GetState() const noexcept -> PlayerState;
-        auto GetDuration() const noexcept -> std::int64_t;
-        auto GetPosition() const noexcept -> std::int64_t;
+  auto GetState() const noexcept -> PlayerState;
+  auto GetDuration() const noexcept -> std::int64_t;
+  auto GetPosition() const noexcept -> std::int64_t;
 
-        auto SetRenderer(Renderer* renderer) -> void;
-        auto SetEventListener(PlayerEventListener* event_listener) -> void;
+  auto SetRenderer(Renderer *renderer) -> void;
+  auto SetEventListener(PlayerEventListener *event_listener) -> void;
 
-    private:
-        void* impl_;
-    };
+ private:
+  void *impl_;
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_PLAYER_HPP
+#endif  // LIGHT_PLAYER_PLAYER_HPP

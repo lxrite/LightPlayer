@@ -1,7 +1,7 @@
 /*
  *    fire_and_forget.hpp:
  *
- *    Copyright (C) 2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2025-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -13,29 +13,20 @@
 
 namespace lp::coroutine {
 
-    struct FireAndForget {
-        struct promise_type {
-            auto get_return_object() noexcept -> FireAndForget {
-                return {};
-            }
+struct FireAndForget {
+  struct promise_type {
+    auto get_return_object() noexcept -> FireAndForget { return {}; }
 
-            auto initial_suspend() noexcept -> std::suspend_never {
-                return {};
-            }
+    auto initial_suspend() noexcept -> std::suspend_never { return {}; }
 
-            auto final_suspend() noexcept -> std::suspend_never {
-                return {};
-            }
+    auto final_suspend() noexcept -> std::suspend_never { return {}; }
 
-            auto return_void() noexcept -> void {
-            }
+    auto return_void() noexcept -> void {}
 
-            auto unhandled_exception() -> void {
-                std::terminate();
-            }
-        };
-    };
+    auto unhandled_exception() -> void { std::terminate(); }
+  };
+};
 
-} // namespace lp::coroutine
+}  // namespace lp::coroutine
 
-#endif // LIGHT_PLAYER_FIRE_AND_FORGET_HPP
+#endif  // LIGHT_PLAYER_FIRE_AND_FORGET_HPP

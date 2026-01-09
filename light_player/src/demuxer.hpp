@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    demuxer.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -17,17 +17,17 @@ extern "C" {
 
 namespace lp {
 
-    class Demuxer {
-    public:
-        explicit Demuxer(AVFormatContext* format_ctx);
-        ~Demuxer();
+class Demuxer {
+ public:
+  explicit Demuxer(AVFormatContext *format_ctx);
+  ~Demuxer();
 
-        auto GetPacket(Packet& packet) -> DemuxErrors;
+  auto GetPacket(Packet &packet) -> DemuxErrors;
 
-    private:
-        AVFormatContext* format_ctx_;
-    };
+ private:
+  AVFormatContext *format_ctx_;
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_DEMUXER_HPP
+#endif  // LIGHT_PLAYER_DEMUXER_HPP

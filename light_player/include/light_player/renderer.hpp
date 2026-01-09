@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    renderer.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -12,16 +12,14 @@
 #include "include/light_player/ref_counted.hpp"
 #include "include/light_player/types.hpp"
 
-namespace lp
-{
+namespace lp {
 
-    class Renderer
-        : public RefCounted {
-    public:
-        virtual ~Renderer() noexcept {}
-        virtual auto Render(const Picture& picture) noexcept -> void = 0;
-    };
+class Renderer : public RefCounted {
+ public:
+  virtual ~Renderer() noexcept {}
+  virtual auto Render(const Picture &picture) noexcept -> void = 0;
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_RENDERER_HPP
+#endif  // LIGHT_PLAYER_RENDERER_HPP

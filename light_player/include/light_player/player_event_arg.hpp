@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    player_event_arg.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -10,20 +10,20 @@
 
 namespace lp {
 
-	struct PlayerStateOpeningEventArg {};
+struct PlayerStateOpeningEventArg {};
 
-	struct PlayerStateOpenedEventArg {};
+struct PlayerStateOpenedEventArg {};
 
-	struct PlayerStatePlayingEventArg {};
+struct PlayerStatePlayingEventArg {};
 
-	struct PlayerStatePausedEventArg {};
+struct PlayerStatePausedEventArg {};
 
-	struct PlayerStateMediaEndEventArg {};
+struct PlayerStateMediaEndEventArg {};
 
-	struct PlayerStateClosingEventArg {};
+struct PlayerStateClosingEventArg {};
 
-	struct PlayerStateClosedEventArg {};
+struct PlayerStateClosedEventArg {};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_PLAYER_EVENT_ARG_HPP
+#endif  // LIGHT_PLAYER_PLAYER_EVENT_ARG_HPP

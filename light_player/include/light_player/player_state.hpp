@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    player_state.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -10,17 +10,17 @@
 
 namespace lp {
 
-    enum class PlayerState {
-        Ready,
-        Opening,
-        Opended,
-        Playing,
-        Paused,
-        Ended,
-        Failed,
-        Closing,
-    };
+enum class PlayerState {
+  Ready,
+  Opening,
+  Opended,
+  Playing,
+  Paused,
+  Ended,
+  Failed,
+  Closing,
+};
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_PLAYER_STATE_HPP
+#endif  // LIGHT_PLAYER_PLAYER_STATE_HPP

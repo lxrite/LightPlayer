@@ -1,7 +1,7 @@
-﻿/*
+/*
  *    work.hpp:
  *
- *    Copyright (C) 2017-2025 Light Lin <lxrite@gmail.com> All Rights Reserved.
+ *    Copyright (C) 2017-2026 Light Lin <lxrite@gmail.com> All Rights Reserved.
  *
  */
 
@@ -12,8 +12,8 @@
 
 namespace lp {
 
-	using Work = std::function<void()>;
+using Work = std::function<void()>;
 
-} // namespace lp
+}  // namespace lp
 
-#endif // LIGHT_PLAYER_WORK_HPP
+#endif  // LIGHT_PLAYER_WORK_HPP
